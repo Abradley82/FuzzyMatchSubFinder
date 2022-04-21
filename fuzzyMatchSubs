@@ -1,0 +1,86 @@
+import pandas as pd
+from rapidfuzz import fuzz, process
+import os
+
+
+subData = {}
+pd.set_option('display.max_columns', None)
+
+def sub1CellLength(row):
+    if(type(row["Sub Supplier 1"]) == list and len(row["Sub Supplier 1"]) > 1):
+        if(len(row["Sub Supplier 1"]) == 2):
+            row["Sub Desc 2"] = row["Sub Desc 1"]
+            row["Sub Supplier 2"] = row["Sub Supplier 1"][1]
+            row["Sub Catalog 2"] = row["Sub Catalog 1"][1]
+            row["Match 2 %"] = row["Match 1 %"]
+        else:
+            row["Sub Desc 2"] = row["Sub Desc 1"]
+            row["Sub Supplier 2"] = row["Sub Supplier 1"][1]
+            row["Sub Catalog 2"] = row["Sub Catalog 1"][1]
+            row["Match 2 %"] = row["Match 1 %"]
+            row["Sub Desc 3"] = row["Sub Desc 1"]
+            row["Sub Supplier 3"] = row["Sub Supplier 1"][2]
+            row["Sub Catalog 3"] = row["Sub Catalog 1"][2]
+            row["Match 3 %"] = row["Match 1 %"]
+        row["Sub Supplier 1"] = row["Sub Supplier 1"][0]
+        row["Sub Catalog 1"] = row["Sub Catalog 1"][0]
+    return row
+
+def sub2CellLength(row):
+    if(type(row["Sub Supplier 2"]) == list and len(row["Sub Supplier 2"]) > 1):
+        row["Sub Desc 3"] = row["Sub Desc 2"]
+        row["Sub Supplier 3"] = row["Sub Supplier 2"][1]
+        row["Sub Catalog 3"] = row["Sub Catalog 2"][1]
+        row["Match 3 %"] = row["Match 2 %"]
+        row["Sub Supplier 2"] = row["Sub Supplier 2"][0]
+        row["Sub Catalog 2"] = row["Sub Catalog 2"][0]
+    return row
+
+def sub3CellLength(row):
+    
+    if(type(row["Sub Supplier 3"]) == list and len(row["Sub Supplier 3"]) > 1):
+        row["Sub Supplier 3"] = row["Sub Supplier 3"][0]
+        row["Sub Catalog 3"] = row["Sub Catalog 3"][0]
+    return row
+
+
+
+def dataToDict(row):
+    if(row['Sub Desc'] in subData.keys()):
+        subData[row['Sub Desc']].update({row['Sub Supplier']: row['Sub Catalog']})
+    else:
+        subData[row['Sub Desc']]={row['Sub Supplier']: row['Sub Catalog']}
+    return row
+
+def fuzzMatch(row):
+    matches = process.extract(row['Original Desc'], subData.keys(), limit=3)
+    row["Sub Desc 1"] = matches[0][0]
+    row["Sub Supplier 1"] = list(subData[matches[0][0]].keys())
+    row["Sub Catalog 1"] = list(subData[matches[0][0]].values())
+    row["Match 1 %"] = (matches[0][1]/100)
+    row["Sub Desc 2"] = matches[1][0]
+    row["Sub Supplier 2"] = list(subData[matches[1][0]].keys())
+    row["Sub Catalog 2"] = list(subData[matches[1][0]].values())
+    row["Match 2 %"] = (matches[1][1]/100)
+    row["Sub Desc 3"] = matches[2][0]
+    row["Sub Supplier 3"] = list(subData[matches[2][0]].keys())
+    row["Sub Catalog 3"] = list(subData[matches[2][0]].values())
+    row["Match 3 %"] = (matches[2][1]/100)
+    return row
+
+
+
+os.chdir(r"C:\Users\...")
+
+originalData = pd.read_excel("subsSampleData.xlsx", sheet_name="ProdCat")
+subsData = pd.read_excel("subsSampleData.xlsx", sheet_name="SubsData")
+
+subsDatadict = subsData.apply(dataToDict, axis=1)
+fuzzmat = originalData.apply(fuzzMatch, axis=1)
+
+singleSub1 = fuzzmat.apply(sub1CellLength, axis=1)
+singleSub2 = singleSub1.apply(sub2CellLength, axis=1)
+singleSub3 = singleSub2.apply(sub3CellLength, axis=1)
+
+singleSub3.to_excel("fuzzmatchFile.xlsx")
+
